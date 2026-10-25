@@ -273,6 +273,18 @@ impl CloudApp for SlideApp {
         Some("The presentation is saved as a DeckCraft presentation (.deckcraft) in the folder above.".to_owned())
     }
 
+    fn recents(&self) -> Vec<String> {
+        self.ui.recent.clone()
+    }
+
+    fn open_recent(&mut self, path: &str) {
+        let _ = self.session.execute("file.open", &json!({"path": path}));
+    }
+
+    fn browse_local(&mut self) {
+        let _ = self.run("app.openDialog", json!({}));
+    }
+
     fn style(&self, ui: &Ui) -> craft_ui::cloud::CloudStyle {
         let t = Tokens::get(ui.ctx());
         craft_ui::cloud::CloudStyle {

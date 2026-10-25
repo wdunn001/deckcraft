@@ -731,9 +731,9 @@ name = "collabcraft-share"
 version = "0.1.0"
 source = "git+https://github.com/wdunn001/collab-craft?rev=3c77c3e#3c77c3e551e0597165f85d7921eeb68a4b4b289a"
 dependencies = [
- "craft-cloud 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=6f0a6d2)",
+ "craft-cloud",
  "craft-cloud-client",
- "craft-ui 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=6f0a6d2)",
+ "craft-ui",
  "wasm-bindgen-futures",
 ]
 
@@ -898,16 +898,6 @@ dependencies = [
 [[package]]
 name = "craft-cloud"
 version = "0.1.0"
-source = "git+https://github.com/wdunn001/craft-libs?rev=6f0a6d2#6f0a6d2f4c24140d5ea988e5e40a85b2c6058401"
-dependencies = [
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "craft-cloud"
-version = "0.1.0"
-source = "git+https://github.com/wdunn001/craft-libs?rev=d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1#d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1"
 dependencies = [
  "serde",
  "thiserror 2.0.21",
@@ -918,7 +908,7 @@ name = "craft-cloud-client"
 version = "0.1.0"
 source = "git+https://github.com/wdunn001/collab-craft?rev=3c77c3e#3c77c3e551e0597165f85d7921eeb68a4b4b289a"
 dependencies = [
- "craft-cloud 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=6f0a6d2)",
+ "craft-cloud",
  "craft-collab",
  "js-sys",
  "log",
@@ -956,18 +946,8 @@ dependencies = [
 [[package]]
 name = "craft-ui"
 version = "0.1.0"
-source = "git+https://github.com/wdunn001/craft-libs?rev=6f0a6d2#6f0a6d2f4c24140d5ea988e5e40a85b2c6058401"
 dependencies = [
- "craft-cloud 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=6f0a6d2)",
- "egui",
-]
-
-[[package]]
-name = "craft-ui"
-version = "0.1.0"
-source = "git+https://github.com/wdunn001/craft-libs?rev=d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1#d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1"
-dependencies = [
- "craft-cloud 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1)",
+ "craft-cloud",
  "egui",
  "serde_json",
 ]
@@ -1041,7 +1021,7 @@ dependencies = [
  "collabcraft-share",
  "cpal",
  "craft-cloud-client",
- "craft-ui 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1)",
+ "craft-ui",
  "deckcraft-engine",
  "deckcraft-media",
  "deckcraft-ui-egui",
@@ -1312,8 +1292,8 @@ dependencies = [
 name = "deckcraft-ui-egui"
 version = "0.10.0"
 dependencies = [
- "craft-cloud 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1)",
- "craft-ui 0.1.0 (git+https://github.com/wdunn001/craft-libs?rev=d0e2e20f7ac22ccf1a404fddf888b4ece36c78b1)",
+ "craft-cloud",
+ "craft-ui",
  "deckcraft-anim",
  "deckcraft-color",
  "deckcraft-engine",

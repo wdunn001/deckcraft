@@ -776,33 +776,19 @@ fn new_page(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
 
 /// Open: Recent and Browse on the left; the recent presentations (with a search box) on the
 /// right, and the cloud's own file lists under both.
-fn open_page(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
-    let t = Tokens::get(ui.ctx());
-    const PLACES_W: f32 = 230.0;
-    const BETWEEN: f32 = 24.0;
-    let page_w = ui.available_width();
-    // Side-by-side needs room for the places column, rule, and a usable list column. Below that,
-    // stack so cloud content is not given a 420-point minimum on a 320-point page.
-    let side_by_side = page_w >= PLACES_W + BETWEEN + 1.0 + BETWEEN + 280.0;
-    if side_by_side {
-        let rest = page_w - PLACES_W - BETWEEN - 1.0 - BETWEEN;
-        ui.horizontal_top(|ui| {
-            ui.set_width(PLACES_W);
-            open_places(app, ui, true);
-            let h = ui.available_height().max(320.0);
-            let (r, _) = ui.allocate_exact_size(vec2(1.0, h), Sense::hover());
-            ui.painter().line_segment([r.center_top(), r.center_bottom()], Stroke::new(1.0, t.separator));
-            ui.add_space(BETWEEN);
-            ui.vertical(|ui| {
-                ui.set_max_width(rest);
-                open_lists(app, ui, bs);
-            });
-        });
-    } else {
-        open_places(app, ui, false);
-        ui.add_space(18.0);
-        open_lists(app, ui, bs);
+fn open_page(app: &mut SlideApp, ui: &mut Ui, _bs: &mut Backstage) {
+    if app.session.recovery_dir.is_some() {
+        if ui.button("Recover Unsaved Presentations").clicked() {
+            match app.run("file.recovery.open", json!({})) {
+                Ok(v) if v.get("opened").and_then(Value::as_array).is_some_and(|a| a.is_empty()) => {
+                    app.set_status("There are no unsaved presentations to recover");
+                }
+                _ => {}
+            }
+        }
+        ui.add_space(12.0);
     }
+    crate::cloud::open_page(app, ui);
 }
 
 fn open_places(app: &mut SlideApp, ui: &mut Ui, side_by_side: bool) {
