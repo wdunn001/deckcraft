@@ -94,13 +94,5 @@ lto = "thin"
 codegen-units = 16
 debug = 0
 
-[patch."https://github.com/wdunn001/craft-libs"]
-craft-ui = { path = "../gh-craft-libs/crates/ui" }
-craft-cloud = { path = "../gh-craft-libs/crates/cloud" }
-
-[patch."https://github.com/wdunn001/craft-libs"]
-craft-ui = { path = "../gh-craft-libs/crates/ui" }
-craft-cloud = { path = "../gh-craft-libs/crates/cloud" }
-
 [patch.crates-io]
 krilla = {git = "https://github.com/wdunn001/craft-libs", branch = "quasarke", version = "=0.8.2"}
