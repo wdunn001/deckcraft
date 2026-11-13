@@ -147,3 +147,7 @@ pub(crate) fn title_bar_panel_bounds(total_w: f32, left_offset: f32) -> (f32, f3
     let right_min_x = (total_w - RIGHT_REACH).max(center_x + CENTRE_GAP).min(total_w - 10.0);
     (left_max_x, right_min_x)
 }
+
+#[cfg(test)]
+#[path = "../ribbon_tests.rs"]
+mod layout_tests;
