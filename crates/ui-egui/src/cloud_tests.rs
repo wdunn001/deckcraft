@@ -340,6 +340,9 @@ fn a_conflicted_save_is_reported_as_a_conflict_not_silently_dropped() {
 // ---------------------------------------------------------------- who()/open_page() themselves
 
 fn draw_cloud_ui(app: &mut SlideApp, ui: &mut egui::Ui) {
+    // `who`/`open_page` paint text directly, outside the usual `SlideApp::ui` pass that installs
+    // the app's fonts; a bare `Harness` otherwise starts with none at all.
+    ui.ctx().set_fonts(crate::theme::font_definitions(&[]));
     pump(app, ui.ctx());
     who(app, ui);
     ui.separator();
