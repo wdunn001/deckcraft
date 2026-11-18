@@ -45,8 +45,8 @@ impl Mock {
     }
 }
 
-impl CloudBackend for Arc<Mock> {
-    fn submit(&self, job: Job, post: Post) {
+impl Mock {
+    fn handle(&self, job: Job, post: Post) {
         #[allow(clippy::unwrap_used)]
         match job {
             Job::Account | Job::SignIn => {
@@ -69,6 +69,17 @@ impl CloudBackend for Arc<Mock> {
     }
 }
 
+/// `CloudBackend` is `craft_ui`'s and `Arc` is `std`'s; the orphan rules refuse `impl
+/// CloudBackend for Arc<Mock>` directly, even though `Mock` is local. This newtype is the usual
+/// way round that: wholly local, so the impl is unambiguously ours.
+struct Backend(Arc<Mock>);
+
+impl CloudBackend for Backend {
+    fn submit(&self, job: Job, post: Post) {
+        self.0.handle(job, post);
+    }
+}
+
 fn entry(id: &str, name: &str) -> Entry {
     Entry {
         id: id.to_owned(),
@@ -76,9 +87,12 @@ fn entry(id: &str, name: &str) -> Entry {
         name: name.to_owned(),
         path: format!("/{name}"),
         kind: EntryKind::File,
+        size: None,
+        modified: None,
         mime: None,
         etag: Some("v1".to_owned()),
         writable: true,
+        shared_by: None,
     }
 }
 
@@ -107,7 +121,7 @@ fn unavailable_until_a_backend_is_connected() {
 #[test]
 fn connecting_a_backend_makes_it_available() {
     let mut app = app();
-    app.cloud.connect(Mock::new());
+    app.cloud.connect(Backend(Mock::new()));
     assert!(available(&app));
 }
 
@@ -137,7 +151,7 @@ fn a_rejected_account_call_is_asked_for_only_once_across_many_frames() {
     let mut app = app();
     let mock = Mock::new();
     *mock.account.lock().unwrap() = Err(Fault::Unauthenticated);
-    app.cloud.connect(mock.clone());
+    app.cloud.connect(Backend(mock.clone()));
     let ctx = egui::Context::default();
     for _ in 0..30 {
         start(&mut app);
@@ -156,7 +170,7 @@ fn a_rejected_account_call_is_asked_for_only_once_across_many_frames() {
 fn sign_out_is_not_undone_by_a_stale_reply_on_the_next_frame() {
     let mut app = app();
     let mock = Mock::new();
-    app.cloud.connect(mock.clone());
+    app.cloud.connect(Backend(mock.clone()));
     let ctx = egui::Context::default();
     start(&mut app);
     pump(&mut app, &ctx);
@@ -200,7 +214,7 @@ fn opening_a_cloud_entry_loads_it_and_remembers_where_it_came_from() {
     let bytes = presentation_bytes(&mut app);
     let mock = Mock::new();
     *mock.bytes.lock().unwrap() = Ok(bytes);
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let ctx = egui::Context::default();
 
     open_entry(&mut app, entry("42", "Keynote.deckcraft"), None);
@@ -221,7 +235,7 @@ fn an_md_entry_opened_from_the_cloud_can_be_saved_back() {
     let mock = Mock::new();
     *mock.bytes.lock().unwrap() = Ok(bytes);
     *mock.saved.lock().unwrap() = Ok(entry("7", "Notes.md"));
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let ctx = egui::Context::default();
 
     open_entry(&mut app, entry("7", "Notes.md"), None);
@@ -245,7 +259,7 @@ fn a_save_landing_while_a_different_window_is_active_still_clears_its_own_dirty_
     let mock = Mock::new();
     *mock.bytes.lock().unwrap() = Ok(bytes);
     *mock.saved.lock().unwrap() = Ok(entry("42", "Keynote.deckcraft"));
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let ctx = egui::Context::default();
 
     open_entry(&mut app, entry("42", "Keynote.deckcraft"), None);
@@ -274,7 +288,7 @@ fn shared_with_me_entries_land_in_the_shared_listing_not_mine() {
     let mut app = app();
     let mock = Mock::new();
     *mock.entries.lock().unwrap() = Ok(vec![entry("5", "Theirs.deckcraft")]);
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let ctx = egui::Context::default();
     load_shared(&mut app);
     pump(&mut app, &ctx);
@@ -289,7 +303,7 @@ fn save_as_creates_a_new_cloud_file_and_gives_the_presentation_a_target() {
     let uid = app.session.active().expect("a document is open").uid;
     let mock = Mock::new();
     *mock.saved.lock().unwrap() = Ok(entry("99", "New Deck.deckcraft"));
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let ctx = egui::Context::default();
 
     assert!(!has_target(&app));
@@ -312,7 +326,7 @@ fn a_conflicted_save_is_reported_as_a_conflict_not_silently_dropped() {
     let mock = Mock::new();
     *mock.bytes.lock().unwrap() = Ok(bytes);
     *mock.saved.lock().unwrap() = Err(Fault::Conflict);
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let ctx = egui::Context::default();
 
     open_entry(&mut app, entry("42", "Keynote.deckcraft"), None);
@@ -350,7 +364,7 @@ fn who_and_open_page_actually_sign_in_and_list_when_a_backend_is_connected() {
     let mut app = app();
     let mock = Mock::new();
     *mock.entries.lock().unwrap() = Ok(vec![entry("1", "Talk.deckcraft")]);
-    app.cloud.connect(mock);
+    app.cloud.connect(Backend(mock));
     let mut h = Harness::builder().build_ui_state(|ui, app: &mut SlideApp| draw_cloud_ui(app, ui), app);
     h.run_steps(4);
     assert_eq!(h.state().cloud.account.as_ref().map(|a| a.display.as_str()), Some("Dana"));
