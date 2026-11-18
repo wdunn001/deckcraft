@@ -286,6 +286,104 @@ impl SlideApp {
                 use deckcraft_engine::links::{APP_PAGE, APPS, DISCORD, GITHUB, WEBSITE};
                 return Ok(json!({"discord": DISCORD, "website": WEBSITE, "apps": APPS, "appPage": APP_PAGE, "github": GITHUB}));
             }
+            // ---- cloud storage (File › Open, File › Save As). Every arm checks availability
+            // first, including `cloud.save` and `cloud.reload`: `craft_ui::cloud::save` and
+            // `::reload_active` answer by looking for a cloud origin, which does not exist
+            // without a backend, but that refusal is not the same sentence as UNAVAILABLE, and
+            // every arm here must answer it alike.
+            "cloud.status" => return Ok(crate::cloud::status(self)),
+            "cloud.open" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                self.open_backstage(backstage::Page::Open);
+                crate::cloud::start(self);
+                return Ok(crate::cloud::status(self));
+            }
+            "cloud.browse" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                let path = p.get("path").and_then(Value::as_str).unwrap_or("");
+                crate::cloud::browse(self, path);
+                return Ok(crate::cloud::status(self));
+            }
+            "cloud.shared" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                crate::cloud::load_shared(self);
+                return Ok(crate::cloud::status(self));
+            }
+            "cloud.link" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                crate::cloud::link(self);
+                return Ok(crate::cloud::status(self));
+            }
+            "cloud.signOut" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                crate::cloud::sign_out(self);
+                return Ok(crate::cloud::status(self));
+            }
+            // Opens something already listed, by id or by name. The listing is what the user can
+            // see, which keeps a scripted open and a clicked one on the same footing.
+            "cloud.openFile" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                let id = p.get("id").and_then(Value::as_str);
+                let name = p.get("name").and_then(Value::as_str).unwrap_or("");
+                let found = self
+                    .cloud
+                    .mine
+                    .entries
+                    .iter()
+                    .chain(self.cloud.shared.entries.iter())
+                    .find(|e| id.is_some_and(|id| e.id == id) || (!name.is_empty() && e.name == name))
+                    .cloned();
+                match found {
+                    Some(entry) if crate::cloud::opens(&entry, crate::cloud::PRESENTATION) => {
+                        crate::cloud::open_entry(self, entry, None);
+                        return Ok(crate::cloud::status(self));
+                    }
+                    Some(entry) => return Err(format!("DeckCraft cannot open {}", entry.name)),
+                    None => return Err("no such file in the cloud listing".to_owned()),
+                }
+            }
+            "cloud.save" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                return crate::cloud::save(self);
+            }
+            "cloud.saveAs" => match (p.get("folder").and_then(Value::as_str), p.get("name").and_then(Value::as_str)) {
+                (Some(folder), Some(name)) => {
+                    if !crate::cloud::available(self) {
+                        return Err(crate::cloud::UNAVAILABLE.to_owned());
+                    }
+                    return crate::cloud::save_as(self, folder, name);
+                }
+                _ => {
+                    if !crate::cloud::available(self) {
+                        return Err(crate::cloud::UNAVAILABLE.to_owned());
+                    }
+                    self.open_backstage(backstage::Page::SaveAs);
+                    if let Some(backstage) = &mut self.backstage {
+                        backstage.save_to_cloud = Some(true);
+                    }
+                    return Ok(crate::cloud::status(self));
+                }
+            },
+            "cloud.reload" => {
+                if !crate::cloud::available(self) {
+                    return Err(crate::cloud::UNAVAILABLE.to_owned());
+                }
+                return crate::cloud::reload_active(self);
+            }
             _ => return Err(format!("unknown UI command `{id}`")),
         }
         Ok(Value::Null)

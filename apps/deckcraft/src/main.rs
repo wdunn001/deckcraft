@@ -17,6 +17,7 @@
 #[cfg(target_os = "macos")]
 mod apple_events;
 mod audio;
+mod cloud;
 mod control_server;
 #[cfg(all(unix, not(target_os = "macos")))]
 mod display;
@@ -308,6 +309,7 @@ fn main() -> eframe::Result {
                 }
             }
             app.integrated_titlebar = cfg!(target_os = "macos");
+            cloud::connect(&mut app);
             if let Some(port) = control_port {
                 let rx = control_server::start(port, cc.egui_ctx.clone());
                 app = app.with_control(rx);

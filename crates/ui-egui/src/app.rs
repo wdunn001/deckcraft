@@ -58,6 +58,10 @@ impl SlideApp {
             status: None,
             opening: None,
             toast: None,
+            cloud: craft_ui::cloud::CloudFiles::new(),
+            cloud_sent: crate::cloud::Sent::new(),
+            share: craft_ui::share::ShareDialog::new(),
+            presence: craft_ui::presence::PresenceBar::new().badges_only(),
             fonts_noted: Default::default(),
             perf: Perf { frame_ms: 0.0, render_ms: 0.0, fps: 0.0 },
             synthetic: vec![],
@@ -82,7 +86,7 @@ impl SlideApp {
             palette: None,
             integrated_titlebar: false,
             backstage: None,
-            pending_urls: vec![],
+            pending_urls: Default::default(),
             print_previews: files::PrintPreviews::default(),
             #[cfg(not(target_arch = "wasm32"))]
             updates_rt: updates_ui::Runtime::default(),
@@ -236,6 +240,10 @@ impl SlideApp {
             // window that starts hidden must still apply a file picked before its first UI pass.
             self.drain_inbox();
         }
+        // Answers from the cloud worker, and anything still in flight. A no-op without a
+        // connected backend. Called on every logic pass so an answer that arrives while the
+        // Open or Save As page is closed still lands (a save started from the ribbon, say).
+        craft_ui::cloud::pump(self, ctx);
         self.drain_screenshots();
         // `raw_input_hook` ran before this logic pass. This is normally a no-op now that
         // target-changing work is deferred for a live batch; it still covers a target change
@@ -356,13 +364,22 @@ impl SlideApp {
                 }
             }
         });
+        // Unconditional, because this is also where the share service's answers are collected,
+        // which has to keep happening while the dialog itself is shut.
+        self.share.show(&ctx);
+        // A share of a presentation that has never been saved. The dialog asked; only this side
+        // can serialise a deck, so it answers.
+        share_save(self);
+        // Above the notice and the dialogs: a refused save has to be answered, and the answer
+        // decides what happens to the user's edits.
+        craft_ui::cloud::conflict_modal(self, &ctx);
         toast::note_missing_fonts(self);
         toast::show(self, &ctx);
         dialogs::show(self, &ctx);
         #[cfg(not(target_arch = "wasm32"))]
         updates_ui::show(self, &ctx);
         menus::palette(self, &ctx);
-        for url in std::mem::take(&mut self.pending_urls) {
+        for url in self.pending_urls.take() {
             ctx.open_url(egui::OpenUrl::new_tab(url));
         }
         if let Some(t) = self.pending_copy.take() {
@@ -374,7 +391,37 @@ impl SlideApp {
         self.ui_end(&ctx);
     }
 
-    pub fn open_url(&mut self, url: &str) {
-        self.pending_urls.push(url.to_string());
+    pub fn open_url(&self, url: &str) {
+        self.pending_urls.borrow_mut().push(url.to_string());
+    }
+}
+
+/// Carries out a save the share dialog asked for, and reports the outcome back.
+///
+/// Split into asking and answering because the save is asynchronous. The dialog waits, showing
+/// its own progress, until one of these arrives.
+fn share_save(app: &mut SlideApp) {
+    if let Some(request) = app.share.take_save_request() {
+        // One destination today. `request.destination` names which, and is carried through so a
+        // second one needs no change here.
+        let _ = request.destination;
+        match craft_ui::cloud::save_as(app, "", &request.name) {
+            Ok(_) => app.cloud.sharing_save = true,
+            Err(reason) => app.share.save_failed(reason),
+        }
+    }
+    // The worker reports by clearing `busy`. A new origin means it landed.
+    if app.cloud.sharing_save && app.cloud.busy.is_none() {
+        app.cloud.sharing_save = false;
+        match craft_ui::cloud::origin(app) {
+            Some(origin) => {
+                let (id, name) = (origin.entry.id.clone(), origin.entry.name.clone());
+                app.share.saved(id, name);
+            }
+            None => {
+                let reason = app.cloud.status.clone().unwrap_or_else(|| "the presentation was not saved".to_owned());
+                app.share.save_failed(reason);
+            }
+        }
     }
 }

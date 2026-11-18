@@ -64,18 +64,33 @@ pub fn title_bar(app: &mut SlideApp, ui: &mut Ui) {
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         right.spacing_mut().item_spacing.x = 6.0;
+        // Who is signed in and who else is here, at the far right, where every office suite puts
+        // them. Drawn first because this layout runs right to left. Draws nothing without a
+        // connected backend.
+        craft_ui::cloud::who(app, &mut right);
         if icon_toggle(&mut right, Icon::Search, "Search commands (⇧⌘P)", true, false).clicked() {
             app.palette = Some((String::new(), 0));
         }
-        let share = right.add(
+        let present = right.add(
             egui::Button::new(egui::RichText::new("  Present  ").color(t.accent_text).font(theme::bold(13.0)))
                 .fill(t.accent)
                 .corner_radius(control_h / 2.0)
                 .min_size(vec2(84.0, control_h)),
         );
-        if share.clicked() && has_doc {
+        if present.clicked() && has_doc {
             let from = app.session.active().map(|d| d.selection.slide).unwrap_or(0);
             app.start_show(from, false);
+        }
+        // Share means share when there is somewhere to share to. The dialog itself lives in
+        // craft-ui, so every Craft app offers the same one. Without a service that reports
+        // sharing, nothing is drawn here, rather than a button that fails on use.
+        if craft_ui::cloud::shares(app) {
+            // A split button, drawn by craft-ui so every Craft app offers the same one. Only the
+            // Save a Copy formats under it are DeckCraft's own.
+            let copies = crate::cloud::copies();
+            if let Some(fmt) = craft_ui::cloud::share_button(app, &mut right, &copies) {
+                app.export_as(&fmt, json!({}));
+            }
         }
         if icon_toggle(&mut right, Icon::CommentsBubble, "Comments", has_doc, app.ui.pane.as_deref() == Some("comments")).clicked() {
             let _ = app.run("view.pane", json!({"pane": "comments", "toggle": true}));

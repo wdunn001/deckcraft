@@ -314,6 +314,13 @@ pub(super) fn open_page(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage) {
             heading(ui, "Presentations");
             let q = bs.query.clone();
             recent_list(app, ui, &q, usize::MAX);
+            // Drawn only once a backend is connected; see `apps/deckcraft/src/cloud.rs`.
+            if craft_ui::cloud::available(app) {
+                ui.add_space(26.0);
+                heading(ui, "Cloud");
+                ui.add_space(6.0);
+                craft_ui::cloud::open_page(app, ui);
+            }
         });
     });
 }

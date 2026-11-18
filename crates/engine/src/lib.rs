@@ -588,6 +588,14 @@ impl Session {
     pub fn active_mut(&mut self) -> Option<&mut DocState> {
         self.active.and_then(|i| self.docs.get_mut(i))
     }
+    /// The document with this uid, whether or not it is the active one.
+    ///
+    /// A cloud save answers on whatever document it was for, which may no longer be the one on
+    /// screen by the time the reply lands; a save that only ever updated `active_mut()` would
+    /// leave that document's dirty flag stuck forever once the user switched away from it.
+    pub fn document_mut(&mut self, uid: u64) -> Option<&mut DocState> {
+        self.docs.iter_mut().find(|d| d.uid == uid)
+    }
     pub fn doc(&self) -> Result<&DocState> {
         self.active().ok_or(EngineError::NoDocument)
     }

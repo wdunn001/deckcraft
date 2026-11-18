@@ -18,6 +18,7 @@ pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
 pub mod backstage;
 pub mod canvas;
 pub mod capture;
+pub mod cloud;
 pub mod control;
 pub mod dialogs;
 pub mod doc_window;
@@ -158,6 +159,21 @@ pub const UI_COMMANDS: &[(&str, &str, Option<&str>, &str)] = &[
     ("app.find", "Find…", Some("Cmd+F"), "{}"),
     ("app.replace", "Replace…", Some("Cmd+H"), "{}"),
     ("app.links", "Community Links", None, "{}"),
+    // Cloud storage (File › Open, File › Save As). Every one of these answers with the whole
+    // cloud state, so an agent reads what it changed without a second call. Every arm checks
+    // `craft_ui::cloud::available` first and answers `UNAVAILABLE` alike when it does not: no
+    // arm here is a special case that reaches the engine, the backend worker, or a panic with
+    // nothing connected.
+    ("cloud.status", "Cloud Status", None, "{}"),
+    ("cloud.open", "Open from the Cloud", None, "{}"),
+    ("cloud.browse", "Browse a Cloud Folder", None, "{path}"),
+    ("cloud.shared", "Shared with Me", None, "{}"),
+    ("cloud.link", "Link a Cloud Account", None, "{}"),
+    ("cloud.signOut", "Sign Out of the Cloud", None, "{}"),
+    ("cloud.openFile", "Open a Cloud Presentation", None, "{id? | name?}"),
+    ("cloud.save", "Save to the Cloud", None, "{}"),
+    ("cloud.saveAs", "Save to the Cloud As…", None, "{folder?, name?}"),
+    ("cloud.reload", "Reload from the Cloud", None, "{}"),
 ];
 
 pub struct Perf {
@@ -243,6 +259,20 @@ pub struct SlideApp {
     pub opening: Option<opening::Opening>,
     /// A brief notice over the bottom of the window (missing fonts on opening a file).
     pub toast: Option<toast::Toast>,
+    /// Open and Save against cloud storage: the account, the folder being browsed, transfers in
+    /// flight, and where each open presentation came from. The pages are `craft_ui`'s, so every
+    /// Craft app offers the same ones. Inert until the host connects a backend (see
+    /// `apps/deckcraft/src/cloud.rs`).
+    pub cloud: craft_ui::cloud::CloudFiles,
+    /// The presentation snapshot each cloud save in flight encoded. Only DeckCraft knows what a
+    /// version of a presentation is, so the pages do not hold these.
+    pub(crate) cloud_sent: cloud::Sent,
+    /// Giving other people access to this presentation. The dialog is `craft_ui`'s, so every
+    /// Craft app offers the same one. Inert until the host connects a backend, and unavailable
+    /// until that service says sharing exists.
+    pub share: craft_ui::share::ShareDialog,
+    /// Who else is in this presentation. Draws nothing when nobody is.
+    pub presence: craft_ui::presence::PresenceBar,
     /// Documents (by uid) whose missing fonts have been mentioned.
     fonts_noted: std::collections::HashSet<u64>,
     pub perf: Perf,
@@ -294,7 +324,10 @@ pub struct SlideApp {
     /// slides and status bar until Esc or Back; with nothing open it is the start screen. Opening,
     /// creating or closing a presentation leaves it.
     pub backstage: Option<backstage::Backstage>,
-    pending_urls: Vec<String>,
+    /// URLs to hand the browser at the end of the frame. Behind a cell because the `CloudApp`
+    /// trait's `open_url` takes `&self`: a cloud page asks for one while it is being drawn, which
+    /// is a shared borrow of the window.
+    pending_urls: std::cell::RefCell<Vec<String>>,
     print_previews: app::files::PrintPreviews,
     #[cfg(not(target_arch = "wasm32"))]
     updates_rt: updates_ui::Runtime,

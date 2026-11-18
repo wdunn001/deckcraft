@@ -152,6 +152,30 @@ pub(super) fn save_as(app: &mut SlideApp, ui: &mut Ui, bs: &mut Backstage, out: 
     ui.label(RichText::new(&title).font(theme::font(15.0)).color(t.text));
     dim(ui, path.as_deref().unwrap_or("Not saved yet"));
     ui.add_space(14.0);
+    // Where to save, when there is more than one answer to that. Drawn only once a backend is
+    // connected; see `apps/deckcraft/src/cloud.rs`.
+    if craft_ui::cloud::available(app) {
+        let to_cloud = bs.save_to_cloud.unwrap_or_else(|| craft_ui::cloud::prefers_cloud(app));
+        heading(ui, "Where");
+        ui.add_space(6.0);
+        // Named here, before anything is picked, so the destination reads as the user's own
+        // account and not as a generic place.
+        craft_ui::cloud::start(app);
+        let account = craft_ui::cloud::destination_name(app);
+        if super::files::place_row(ui, Icon::Save, "This Computer", !to_cloud, 300.0).on_hover_text("A folder on this computer").clicked() {
+            bs.save_to_cloud = Some(false);
+        }
+        if super::files::place_row(ui, Icon::Share, &account, to_cloud, 300.0).on_hover_text("Your cloud account").clicked() {
+            bs.save_to_cloud = Some(true);
+        }
+        ui.add_space(18.0);
+        if to_cloud {
+            if craft_ui::cloud::save_page(app, ui) {
+                out.close = true;
+            }
+            return;
+        }
+    }
     let current = SAVE_TYPES.iter().find(|s| s.0 == bs.file_type).map_or(SAVE_TYPES[0].1, |s| s.1);
     ui.horizontal(|ui| {
         craft_ui::ComboBox::from_id_salt("backstage_save_type")

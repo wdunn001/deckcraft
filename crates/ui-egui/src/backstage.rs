@@ -192,6 +192,9 @@ pub struct Backstage {
     pub pdf_hidden: bool,
     /// Export › Change File Type › PNG: leave the slide background out (#784).
     pub png_transparent: bool,
+    /// Save As: which destination is chosen. `None` until the user picks one, and the cloud is
+    /// offered first for a presentation that came from there.
+    pub save_to_cloud: Option<bool>,
 }
 
 impl Backstage {
@@ -217,6 +220,7 @@ impl Backstage {
             handouts_per_page: 3,
             pdf_hidden: false,
             png_transparent: false,
+            save_to_cloud: None,
         }
     }
 
@@ -422,6 +426,12 @@ pub fn show(app: &mut SlideApp, ui: &mut Ui) {
             });
         });
     });
+    // Leaving Save As without submitting it, or going straight from one Save As to an unrelated
+    // one: either way the typed name and the document a conflict's "Save as a copy" set must not
+    // carry into whatever comes next.
+    if bs.page == Page::SaveAs && (out.close || out.page.is_some_and(|p| p != Page::SaveAs)) {
+        craft_ui::cloud::cancel_save_as(app);
+    }
     if let Some(page) = out.page {
         bs.go(page);
     }

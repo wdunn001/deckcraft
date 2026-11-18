@@ -498,6 +498,12 @@ impl SlideApp {
                 Ok(_) => self.set_status("Saved"),
                 Err(e) => self.set_status(e.to_string()),
             }
+        } else if craft_ui::cloud::has_target(self) {
+            // It came from the cloud and has no file on this computer, so it goes back where it
+            // came from. The outcome arrives through `craft_ui::cloud::pump`.
+            if let Err(e) = craft_ui::cloud::save(self) {
+                self.set_status(e);
+            }
         } else {
             self.save_as_dialog("deckcraft");
         }

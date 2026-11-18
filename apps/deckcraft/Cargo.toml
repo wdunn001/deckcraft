@@ -28,6 +28,9 @@ winresource = "0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 craft-update = { workspace = true }
+# The cloud backend: a local folder, through craft-libs' own reference `CloudBackend`. See
+# `src/cloud.rs`.
+craft-cloud-local = { workspace = true }
 rfd = { workspace = true }
 arboard = { workspace = true, features = ["image-data"] }
 image = { workspace = true }
